@@ -2,14 +2,12 @@ import React from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { Minus, Plus, X, ShoppingCart, Trash2, Receipt } from 'lucide-react';
 import {
-  incrementQuantity,
-  decrementQuantity,
   clearCart,
   setServiceFees,
-  removeFromCart
+  setCartData
 } from '../../Store/Slices/cartSlice';
 import { usePost } from '../../Hooks/usePost';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useCurrency } from '../../Hooks/useCurrency';
@@ -25,6 +23,9 @@ const Cart = () => {
   const apiUrl = import.meta.env.VITE_API_BASE_URL;
   const { t } = useTranslation();
   const currency = useCurrency();
+  const token = useSelector((state) => state?.user?.data?.token || '');
+  const language = useSelector(state => state.language?.selected || 'en');
+  const [loadingAction, setLoadingAction] = useState(false);
 
   const getId = () => {
     if (orderType === 'delivery') return selectedAddressId;
@@ -43,6 +44,78 @@ const Cart = () => {
       fetchServiceFees({});
     }
   }, [id]);
+
+  const fetchCart = async () => {
+    if(!token) return;
+    const locId = selectedBranchId ? `branch_id=${selectedBranchId}` : `address_id=${selectedAddressId}`;
+    try {
+      const cartRes = await fetch(`${apiUrl}/customer/cart?locale=${language}&${locId}&_t=${Date.now()}`, {
+        headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
+        cache: 'no-store'
+      });
+      if(cartRes.ok){
+          const cartData = await cartRes.json();
+          dispatch(setCartData(cartData));
+      } else {
+          dispatch(setCartData({}));
+      }
+    } catch(e) {}
+  };
+
+  useEffect(() => {
+    fetchCart();
+  }, [selectedBranchId, selectedAddressId, token, language]);
+
+  const handleUpdateQuantity = async (item, newQuantity) => {
+    if(newQuantity < 1) return;
+    setLoadingAction(true);
+    const apiPayload = {
+      products: [{
+          id: item.product.id,
+          quantity: newQuantity,
+          note: item.note,
+          variations: [],
+          addons: []
+      }]
+    };
+    const productPayload = apiPayload.products[0];
+    Object.entries(item.variations || {}).forEach(([varId, optIds]) => {
+      const variationObj = { id: parseInt(varId), options: [] };
+      if (Array.isArray(optIds)) {
+        optIds.forEach(id => variationObj.options.push({ id: parseInt(id), quantity: 1 }));
+      } else {
+        variationObj.options.push({ id: parseInt(optIds), quantity: 1 });
+      }
+      productPayload.variations.push(variationObj);
+    });
+    Object.entries(item.addons || {}).forEach(([addonId, addonData]) => {
+      if (addonData.checked) {
+        productPayload.addons.push({ id: parseInt(addonId), quantity: addonData.quantity || 1 });
+      }
+    });
+
+    try {
+      const response = await fetch(`${apiUrl}/customer/cart/update/${item.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
+        body: JSON.stringify(apiPayload)
+      });
+      if (response.ok) await fetchCart();
+    } catch(err) { console.error(err); }
+    setLoadingAction(false);
+  };
+
+  const handleRemoveFromCart = async (itemId) => {
+    setLoadingAction(true);
+    try {
+      const response = await fetch(`${apiUrl}/customer/cart/delete/${itemId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+      });
+      if (response.ok) await fetchCart();
+    } catch(err) { console.error(err); }
+    setLoadingAction(false);
+  };
 
   useEffect(() => {
     if (serviceFeesResponse && serviceFeesResponse.data && serviceFeesResponse.data.service_fees) {
@@ -141,7 +214,7 @@ const Cart = () => {
                         {/* Price per item */}
                         <div className="flex items-center gap-2 mb-3">
                           <span className="text-lg font-bold text-mainColor">
-                            {(item.totalPrice / item.quantity).toFixed(2)} {currency}
+                          {( ((item.product.price || 0) / (item.quantity || 1)) ).toFixed(2)} {currency}
                           </span>
                           {item.product.discount_val > 0 && (
                             <span className="text-sm text-red-500 line-through">
@@ -219,8 +292,9 @@ const Cart = () => {
 
                       {/* Remove Button */}
                       <button
-                        onClick={() => dispatch(removeFromCart(item.id))}
-                        className="ml-4 text-gray-400 transition-colors hover:text-red-500"
+                        onClick={() => handleRemoveFromCart(item.id)}
+                        disabled={loadingAction}
+                        className="ml-4 text-gray-400 transition-colors hover:text-red-500 disabled:opacity-50"
                         title="Remove item"
                       >
                         <X className="w-5 h-5" />
@@ -231,23 +305,24 @@ const Cart = () => {
                     <div className="flex items-center justify-between mt-4">
                       <div className="flex items-center px-3 py-1 space-x-3 rounded-lg bg-gray-50">
                         <button
-                          onClick={() => dispatch(decrementQuantity(item.id))}
-                          className="p-1 transition-colors rounded-full hover:bg-white"
-                          disabled={item.quantity <= 1}
+                          onClick={() => handleUpdateQuantity(item, item.quantity - 1)}
+                          className="p-1 transition-colors rounded-full hover:bg-white disabled:opacity-50"
+                          disabled={item.quantity <= 1 || loadingAction}
                         >
                           <Minus className="w-4 h-4" />
                         </button>
                         <span className="w-8 text-lg font-semibold text-center">{item.quantity}</span>
                         <button
-                          onClick={() => dispatch(incrementQuantity(item.id))}
-                          className="p-1 transition-colors rounded-full hover:bg-white"
+                          onClick={() => handleUpdateQuantity(item, item.quantity + 1)}
+                          disabled={loadingAction}
+                          className="p-1 transition-colors rounded-full hover:bg-white disabled:opacity-50"
                         >
                           <Plus className="w-4 h-4" />
                         </button>
                       </div>
 
                       <span className="text-xl font-bold text-mainColor">
-                        {item.totalPrice.toFixed(2)} {currency}
+                        {(item.product.price || 0).toFixed(2)} {currency}
                       </span>
                     </div>
                   </div>

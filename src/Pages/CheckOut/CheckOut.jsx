@@ -95,7 +95,7 @@ const CheckOut = () => {
     });
 
     const { postData: postOrder, loadingPost: loadingOrder, response: responseOrder } = usePost({
-        url: `${apiUrl}/customer/make_order?locale=ar`,
+        url: `${apiUrl}/customer/make_order/from_cart?locale=ar`,
         type: true,
     });
 
@@ -382,60 +382,19 @@ const CheckOut = () => {
     };
 
     const prepareOrderData = () => {
-        // Calculate base amount first
-        const baseAmount = taxSysType === "included"
-            ? (orderSummary.subtotal - orderSummary.discount || orderSummary.priceAfterDiscount)
-            : orderSummary.total;
-
-        // Add delivery fee if applicable
-        let totalAmount = baseAmount + (orderType === "delivery" ? (orderSummary.delivery || 0) : 0);
-
-        // Add service fees
-        totalAmount += (orderSummary.serviceFees || 0);
-        // Calculate and add payment method fee
-        const paymentFee = selectedPaymentMethod ?
-            calculatePaymentFee(selectedPaymentMethod, totalAmount) : 0;
-        // Add payment fee to total
-        totalAmount += paymentFee;
-
-        const products = cart.items.map(item => ({
-            product_id: item.product.id,
-            note: item.note,
-            count: item.quantity,
-            addons: Object.entries(item.addons)
-                .filter(([_, addonData]) => addonData.checked)
-                .map(([addonId, addonData]) => ({
-                    addon_id: parseInt(addonId),
-                    count: addonData.quantity || 1
-                })),
-            exclude_id: item.excludes,
-            extra_id: Object.entries(item.extras)
-                .filter(([_, quantity]) => quantity > 0)
-                .map(([extraId]) => parseInt(extraId)),
-            variation: Object.entries(item.variations).map(([variationId, optionIds]) => ({
-                variation_id: parseInt(variationId),
-                option_id: Array.isArray(optionIds) ? optionIds : [optionIds]
-            }))
-        }));
-
         return {
             notes: notes,
             payment_method_id: selectedPaymentMethod?.id,
             receipt: receiptFile,
             branch_id: orderType === 'take_away' ? selectedBranchId : "",
             address_id: orderType === 'delivery' ? selectedAddressId : "",
-            amount: totalAmount,
-            payment_fee: paymentFee,
-            total_tax: cart.totalTax,
-            total_discount: cart.totalDiscount,
-            delivery_price: orderSummary.delivery,
             order_type: orderType,
             sechedule_slot_id: selectedSchedule?.id,
-            products: products,
+            delivery_fees: orderSummary.delivery,
+            service_fees: orderSummary.serviceFees || 0,
+            service_fees_id: cart.serviceFees?.id,
             source: "web",
             confirm_order: 0,
-            service_fees: orderSummary.serviceFees || 0,
-            service_fees_id: cart.serviceFees?.id
         };
     };
 
@@ -605,7 +564,7 @@ const CheckOut = () => {
                                             <h3 className="font-semibold text-gray-900">{item.product.name}</h3>
                                             <p className="text-sm text-gray-600">{t('Qty')}: {item.quantity}</p>
                                             <p className="text-lg font-bold text-mainColor">
-                                                {item.totalPrice.toFixed(2)} {currency}
+                                                {(item.product.price || 0).toFixed(2)} {currency}
                                             </p>
                                         </div>
                                     </div>

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Plus, Minus, Heart } from 'lucide-react';
 import { useGet } from '../../Hooks/useGet';
 import { useDispatch, useSelector } from 'react-redux';
-import { addToCart } from '../../Store/Slices/cartSlice';
+import { addToCart, setCartData } from '../../Store/Slices/cartSlice';
 import { toggleFavorite, setFavorite } from '../../Store/Slices/favoritesSlice'; // Import actions
 import { useChangeState } from '../../Hooks/useChangeState';
 import StaticSpinner from '../../Components/Spinners/StaticSpinner';
@@ -246,7 +246,7 @@ const ProductDetails = ({ product, onClose, language, showActions = true }) => {
   const calculateTotalPrice = () => {
     if (!productDetails) return (product.price_after_discount || product.price) * quantity;
 
-    let total = parseFloat(productDetails.price_after_discount || productDetails.price);
+    let total = parseFloat(productDetails.product?.price_after_discount || productDetails.product?.price || product.price_after_discount || product.price);
 
     // Add variation prices (multiplied by quantity - KEEP AS IS)
     Object.values(selectedVariations).forEach((optionIds) => {
@@ -323,7 +323,7 @@ const ProductDetails = ({ product, onClose, language, showActions = true }) => {
     return variationsValid && extrasValid;
   };
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     if (!canAddToCart()) return;
 
     if (!user) {
@@ -346,19 +346,74 @@ const ProductDetails = ({ product, onClose, language, showActions = true }) => {
       return;
     }
 
-    const cartItem = {
-      product: productDetails || product,
-      quantity,
-      variations: selectedVariations,
-      addons: selectedAddons,
-      excludes: selectedExcludes,
-      extras: selectedExtras,
-      note: note.trim(),
-      totalPrice: calculateTotalPrice(),
+    const apiPayload = {
+      products: [
+        {
+          id: productDetails?.id || product.id,
+          quantity: quantity,
+          note: note.trim(),
+          variations: [],
+          addons: []
+        }
+      ]
     };
-    dispatch(addToCart(cartItem));
-    auth.toastSuccess(`${product.name} ${t('addedToCart')}`);
-    onClose();
+
+    const productPayload = apiPayload.products[0];
+
+    Object.entries(selectedVariations).forEach(([varId, optIds]) => {
+      const variationObj = {
+        id: parseInt(varId),
+        options: []
+      };
+      if (Array.isArray(optIds)) {
+        optIds.forEach(id => variationObj.options.push({ id: parseInt(id), quantity: 1 }));
+      } else {
+        variationObj.options.push({ id: parseInt(optIds), quantity: 1 });
+      }
+      productPayload.variations.push(variationObj);
+    });
+
+    Object.entries(selectedAddons).forEach(([addonId, addonData]) => {
+      if (addonData.checked) {
+        productPayload.addons.push({
+          id: parseInt(addonId),
+          quantity: addonData.quantity || 1
+        });
+      }
+    });
+
+    try {
+      const response = await fetch(`${apiUrl}/customer/cart/add`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(apiPayload)
+      });
+      
+      const result = await response.json();
+      if (response.ok) {
+        auth.toastSuccess(`${product.name} ${t('addedToCart')}`);
+        
+        // Fetch updated cart
+        const locId = selectedBranchId ? `branch_id=${selectedBranchId}` : `address_id=${selectedAddressId}`;
+        const cartRes = await fetch(`${apiUrl}/customer/cart?locale=${language}&${locId}`, {
+          headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+        });
+        if(cartRes.ok){
+            const cartData = await cartRes.json();
+            dispatch(setCartData(cartData));
+        }
+        onClose();
+      } else {
+        auth.toastError(result.errors || result.message || 'Error adding to cart');
+      }
+    } catch(err) {
+      console.error(err);
+      auth.toastError('Network error');
+    }
   };
 
   if (loadingProductDetails) {
@@ -427,7 +482,7 @@ const ProductDetails = ({ product, onClose, language, showActions = true }) => {
                   </span>
                 )}
                 <span className="text-lg font-bold text-mainColor">
-                  {displayData.price_after_discount || displayData.price} {currency}
+                  {calculateTotalPrice().toFixed(2)} {currency}
                 </span>
               </div>
             </div>

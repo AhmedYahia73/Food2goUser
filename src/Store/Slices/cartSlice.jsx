@@ -154,6 +154,64 @@ const cartSlice = createSlice({
       state.items = savedCart.items;
       state.serviceFees = savedCart.serviceFees || 0;
       updateCartTotals(state);
+    },
+
+    setCartData: (state, action) => {
+      const data = action.payload;
+      if (data && data.products) {
+        state.items = data.products.map(cartItem => {
+          const variations = {};
+          cartItem.variations?.forEach(vCart => {
+            const optIds = vCart.options?.map(o => o.id) || [];
+            variations[vCart.id] = optIds;
+          });
+
+          const addons = {};
+          cartItem.addons?.forEach(aCart => {
+            addons[aCart.id] = { checked: true, quantity: aCart.quantity };
+          });
+
+          const mappedItem = {
+            id: cartItem.cart_id, // Important: Use cart ID for update/delete API calls
+            product: { 
+                ...cartItem, // Contains name, price, description, etc.
+                price: cartItem.price,
+                price_after_discount: cartItem.price - (cartItem.discount_val || 0)
+            },
+            quantity: cartItem.quantity,
+            variations: variations,
+            addons: addons,
+            excludes: [],
+            extras: {},
+            note: cartItem.note || '',
+            basePrice: cartItem.price - (cartItem.discount_val || 0),
+          };
+          
+          // These are for local UI display inside Cart.jsx
+          mappedItem.totalPrice = Number(cartItem.total_price) || 0;
+          mappedItem.taxDetails = { totalTax: Number(cartItem.total_tax) || 0 };
+          
+          return mappedItem;
+        });
+
+        // Use Backend Totals directly!
+        const summary = data.cart_summary || {};
+        state.subtotal = parseFloat(summary.total_price || 0);
+        state.totalTax = parseFloat(summary.total_tax || 0);
+        state.totalDiscount = parseFloat(summary.total_discount || 0);
+        state.priceAfterDiscount = parseFloat(summary.total_price || 0) - parseFloat(summary.total_discount || 0);
+        state.total = state.priceAfterDiscount + state.totalTax; 
+        state.itemCount = state.items.reduce((sum, item) => sum + item.quantity, 0);
+      } else {
+        state.items = [];
+        state.subtotal = 0;
+        state.totalTax = 0;
+        state.totalDiscount = 0;
+        state.priceAfterDiscount = 0;
+        state.total = 0;
+        state.itemCount = 0;
+      }
+      saveCartToStorage(state);
     }
   }
 });
@@ -438,7 +496,8 @@ export const {
   decrementQuantity,
   updateItemNote,
   initializeCart,
-  setServiceFees
+  setServiceFees,
+  setCartData
 } = cartSlice.actions;
 
 export default cartSlice.reducer;
