@@ -230,60 +230,38 @@ const Cart = () => {
                             const variation = item.product.variations?.find(v => v.id === parseInt(variationId));
                             if (!variation) return null;
 
-                            return (
-                              <div key={variationId} className="flex">
-                                <span className="w-20 font-medium">{variation.name}:</span>
-                                <span>
-                                  {Array.isArray(optionIds) ? (
-                                    optionIds.map(optionId => {
-                                      const option = variation.options.find(o => o.id === optionId);
-                                      return option?.name;
-                                    }).join(', ')
-                                  ) : (
-                                    variation.options.find(o => o.id === optionIds)?.name
-                                  )}
-                                </span>
-                              </div>
-                            );
-                          })}
+                          {/* Variations from backend */}
+                          {item.product?.variations?.map((variation, idx) => (
+                            <div key={`var-${idx}`} className="flex">
+                              <span className="w-20 font-medium">{variation.name}:</span>
+                              <span>
+                                {variation.options?.map(opt => opt.name).join(', ')}
+                              </span>
+                            </div>
+                          ))}
 
-                          {/* Addons */}
-                          {item.addons && Object.entries(item.addons).map(([addonId, addonData]) => {
-                            if (!addonData.checked) return null;
-                            const addon = item.product.addons?.find(a => a.id === parseInt(addonId));
-                            if (!addon) return null;
+                          {/* Addons from backend */}
+                          {item.product?.addons?.map((addon, idx) => (
+                            <div key={`addon-${idx}`} className="flex">
+                              <span className="w-20 font-medium">Addon:</span>
+                              <span>{addon.name} ({addon.quantity}x)</span>
+                            </div>
+                          ))}
 
-                            return (
-                              <div key={addonId} className="flex">
-                                <span className="w-20 font-medium">Addon:</span>
-                                <span>{addon.name} ({addonData.quantity}x)</span>
-                              </div>
-                            );
-                          })}
+                          {/* Extras from backend */}
+                          {item.product?.extras?.map((extra, idx) => (
+                            <div key={`extra-${idx}`} className="flex">
+                              <span className="w-20 font-medium">Extra:</span>
+                              <span>{extra.name} ({extra.quantity}x)</span>
+                            </div>
+                          ))}
 
-                          {/* Extras (No Tax) */}
-                          {item.extras && Object.entries(item.extras).map(([extraId, extraQty]) => {
-                            if (extraQty <= 0) return null;
-                            const extra = item.product.allExtras?.find(e => e.id === parseInt(extraId));
-                            if (!extra) return null;
-
-                            return (
-                              <div key={extraId} className="flex">
-                                <span className="w-20 font-medium">Extra:</span>
-                                <span>{extra.name} ({extraQty}x) - No Tax</span>
-                              </div>
-                            );
-                          })}
-
-                          {/* Excludes */}
-                          {item.excludes && item.excludes.length > 0 && (
+                          {/* Excludes from backend */}
+                          {item.product?.excludes?.length > 0 && (
                             <div className="flex">
                               <span className="w-20 font-medium">{t("Excluded")}:</span>
                               <span>
-                                {item.excludes.map(excludeId => {
-                                  const exclude = item.product.excludes?.find(e => e.id === excludeId);
-                                  return exclude?.name;
-                                }).join(', ')}
+                                {item.product.excludes.map(exclude => exclude.name).join(', ')}
                               </span>
                             </div>
                           )}
@@ -417,7 +395,7 @@ const Cart = () => {
                     {items.map((item, index) => (
                       <div key={index} className="text-xs text-gray-600">
                         <div className="font-medium">{item.product.name}</div>
-                        {item.taxDetails.taxBreakdown.map((taxItem, taxIndex) => (
+                        {item.taxDetails?.taxBreakdown?.map((taxItem, taxIndex) => (
                           <div key={taxIndex} className="ml-2">
                             {taxItem.name}: {taxItem.taxAmount.toFixed(2)} {currency} ({taxItem.taxRate}%)
                           </div>
