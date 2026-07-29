@@ -505,7 +505,7 @@ const ProductDetails = ({ product, onClose, language, showActions = true }) => {
               </h3>
 
               <div className="space-y-2">
-                {variation.options.map((option) => {
+                {variation.options?.map((option) => {
                   const currentSelections = selectedVariations[variation.id] || [];
                   const optionCount = variation.type === 'single'
                     ? (currentSelections === option.id ? 1 : 0)
@@ -587,7 +587,7 @@ const ProductDetails = ({ product, onClose, language, showActions = true }) => {
             <div className="mb-6">
               <h3 className="mb-3 font-semibold">{t('addons')}</h3>
               <div className="space-y-2">
-                {displayData.addons.map((addon) => {
+                {displayData.addons?.map((addon) => {
                   const canChangeQuantity = addon.quantity_add === 1;
                   const currentAddon = selectedAddons[addon.id];
                   return (
@@ -646,7 +646,7 @@ const ProductDetails = ({ product, onClose, language, showActions = true }) => {
             <div className="mb-6">
               <h3 className="mb-3 font-semibold">{t('availableExtras')}</h3>
               <div className="space-y-3">
-                {availableExtras.map((extra) => {
+                {availableExtras?.map((extra) => {
                   const currentQty = selectedExtras[extra.id] || 0;
                   const min = extra.min || 0;
                   const max = extra.max || Infinity;
@@ -703,7 +703,7 @@ const ProductDetails = ({ product, onClose, language, showActions = true }) => {
             <div className="mb-6">
               <h3 className="mb-3 font-semibold">{t('excludeItems')}</h3>
               <div className="space-y-2">
-                {displayData.excludes.map((exclude) => (
+                {displayData.excludes?.map((exclude) => (
                   <label
                     key={exclude.id}
                     className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50"

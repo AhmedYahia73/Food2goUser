@@ -225,11 +225,6 @@ const Cart = () => {
 
                         {/* Customizations */}
                         <div className="space-y-1 text-sm text-gray-600">
-                          {/* Variations */}
-                          {item.variations && Object.entries(item.variations).map(([variationId, optionIds]) => {
-                            const variation = item.product.variations?.find(v => v.id === parseInt(variationId));
-                            if (!variation) return null;
-
                           {/* Variations from backend */}
                           {item.product?.variations?.map((variation, idx) => (
                             <div key={`var-${idx}`} className="flex">
@@ -261,7 +256,7 @@ const Cart = () => {
                             <div className="flex">
                               <span className="w-20 font-medium">{t("Excluded")}:</span>
                               <span>
-                                {item.product.excludes.map(exclude => exclude.name).join(', ')}
+                                {item.product?.excludes?.map(exclude => exclude.name).join(', ')}
                               </span>
                             </div>
                           )}
