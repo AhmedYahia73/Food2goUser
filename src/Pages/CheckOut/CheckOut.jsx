@@ -564,7 +564,7 @@ const CheckOut = () => {
                                             <h3 className="font-semibold text-gray-900">{item.product.name}</h3>
                                             <p className="text-sm text-gray-600">{t('Qty')}: {item.quantity}</p>
                                             <p className="text-lg font-bold text-mainColor">
-                                                {(item.product.price || 0).toFixed(2)} {currency}
+                                                {(item.product.total_price || 0).toFixed(2)} {currency}
                                             </p>
                                         </div>
                                     </div>

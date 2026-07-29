@@ -214,7 +214,7 @@ const Cart = () => {
                         {/* Price per item */}
                         <div className="flex items-center gap-2 mb-3">
                           <span className="text-lg font-bold text-mainColor">
-                          {( ((item.product.price || 0) / (item.quantity || 1)) ).toFixed(2)} {currency}
+                          {( ((item.product.total_price || 0) / (item.quantity || 1)) ).toFixed(2)} {currency}
                           </span>
                           {item.product.discount_val > 0 && (
                             <span className="text-sm text-red-500 line-through">
@@ -322,7 +322,7 @@ const Cart = () => {
                       </div>
 
                       <span className="text-xl font-bold text-mainColor">
-                        {(item.product.price || 0).toFixed(2)} {currency}
+                        {(item.product.total_price || 0).toFixed(2)} {currency}
                       </span>
                     </div>
                   </div>
