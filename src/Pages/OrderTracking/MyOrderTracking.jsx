@@ -35,34 +35,42 @@ const MyOrderTracking = () => {
   const [cancelReason, setCancelReason] = useState('');
 
   // Pagination state
-  const [visiblePendingCount, setVisiblePendingCount] = useState(15);
-  const [visibleHistoryCount, setVisibleHistoryCount] = useState(15);
+  const [pendingPage, setPendingPage] = useState(1);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [hasMorePending, setHasMorePending] = useState(false);
+  const [hasMoreHistory, setHasMoreHistory] = useState(false);
 
   // API hooks
   const { refetch: refetchOrders, loading: loadingOrders, data: dataOrders } = useGet({
-    url: `${apiUrl}/customer/orders`,
+    url: `${apiUrl}/customer/orders?page=${pendingPage}`,
   });
 
   const { refetch: refetchOrdersHistory, loading: loadingOrdersHistory, data: dataOrdersHistory } = useGet({
-    url: `${apiUrl}/customer/orders/history`,
+    url: `${apiUrl}/customer/orders/history?page=${historyPage}`,
   });
 
   const { changeState: cancelOrder, loadingChange: loadingCancel } = useChangeState();
 
-  // Fetch data based on active tab
+  // Fetch data based on active tab and page changes
   useEffect(() => {
     if (activeTab === 'pending') {
       refetchOrders();
-    } else {
+    }
+  }, [activeTab, pendingPage]);
+
+  useEffect(() => {
+    if (activeTab === 'history') {
       refetchOrdersHistory();
     }
-  }, [activeTab]);
+  }, [activeTab, historyPage]);
 
   // Handle customer pending orders
   useEffect(() => {
     if (dataOrders && dataOrders.orders && activeTab === 'pending') {
       const globalCancelTime = dataOrders.cancel_time;
-      const pendingOrders = dataOrders.orders.map(order => {
+      // dataOrders.orders is now a paginator object, so we access .data
+      const ordersData = Array.isArray(dataOrders.orders) ? dataOrders.orders : (dataOrders.orders.data || []);
+      const pendingOrdersList = ordersData.map(order => {
         // Use order-specific cancel_time if available, otherwise use global one
         const effectiveOrder = {
           ...order,
@@ -74,14 +82,37 @@ const MyOrderTracking = () => {
           isCancellable: order.can_cancel && isCancellable(effectiveOrder)
         };
       });
-      setOrders(pendingOrders);
+      
+      if (pendingPage === 1) {
+        setOrders(pendingOrdersList);
+      } else {
+        setOrders(prev => [...prev, ...pendingOrdersList]);
+      }
+
+      if (dataOrders.orders.last_page) {
+        setHasMorePending(dataOrders.orders.current_page < dataOrders.orders.last_page);
+      } else {
+        setHasMorePending(false);
+      }
     }
   }, [dataOrders, activeTab]);
 
   // Handle history orders
   useEffect(() => {
     if (dataOrdersHistory && dataOrdersHistory.orders && activeTab === 'history') {
-      setHistoryOrders(dataOrdersHistory.orders);
+      const historyData = Array.isArray(dataOrdersHistory.orders) ? dataOrdersHistory.orders : (dataOrdersHistory.orders.data || []);
+      
+      if (historyPage === 1) {
+        setHistoryOrders(historyData);
+      } else {
+        setHistoryOrders(prev => [...prev, ...historyData]);
+      }
+
+      if (dataOrdersHistory.orders.last_page) {
+        setHasMoreHistory(dataOrdersHistory.orders.current_page < dataOrdersHistory.orders.last_page);
+      } else {
+        setHasMoreHistory(false);
+      }
     }
   }, [dataOrdersHistory, activeTab]);
 
@@ -561,12 +592,12 @@ const MyOrderTracking = () => {
               </div>
             ) : (
               <div className="space-y-6">
-                {orders.slice(0, visiblePendingCount).map((order) => renderOrderItem(order, false))}
+                {orders.map((order) => renderOrderItem(order, false))}
 
-                {orders.length > visiblePendingCount && (
+                {hasMorePending && (
                   <div className="flex justify-center pt-4">
                     <button
-                      onClick={() => setVisiblePendingCount(prev => prev + 15)}
+                      onClick={() => setPendingPage(prev => prev + 1)}
                       className="px-8 py-3 text-sm font-bold text-white transition-all rounded-2xl bg-mainColor hover:bg-mainColor/90 hover:shadow-lg active:scale-95"
                     >
                       {t('ShowMore')}
@@ -588,12 +619,12 @@ const MyOrderTracking = () => {
               </div>
             ) : (
               <div className="space-y-6">
-                {historyOrders.slice(0, visibleHistoryCount).map((order) => renderOrderItem(order, true))}
+                {historyOrders.map((order) => renderOrderItem(order, true))}
 
-                {historyOrders.length > visibleHistoryCount && (
+                {hasMoreHistory && (
                   <div className="flex justify-center pt-4">
                     <button
-                      onClick={() => setVisibleHistoryCount(prev => prev + 15)}
+                      onClick={() => setHistoryPage(prev => prev + 1)}
                       className="px-8 py-3 text-sm font-bold text-gray-700 transition-all bg-white border border-gray-200 rounded-2xl hover:bg-gray-50 hover:shadow-md active:scale-95"
                     >
                       {t('ShowMore')}
