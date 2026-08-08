@@ -339,6 +339,15 @@ const MyOrderTracking = () => {
                 />
                 <div className="flex-1 min-w-0">
                   <h4 className="font-semibold text-gray-900">{product.name}</h4>
+                  {product.options && product.options.length > 0 && (
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {product.options.map((opt, i) => (
+                        <span key={i} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full border border-gray-200">
+                          {opt.name || opt}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   <p className="mt-1 text-sm text-gray-600">
                     {t('Quantity')}: {product.count}
                   </p>
