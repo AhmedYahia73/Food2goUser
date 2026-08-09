@@ -40,11 +40,11 @@ const MyOrderTracking = () => {
 
   // API hooks
   const { refetch: refetchOrders, loading: loadingOrders, data: dataOrders } = useGet({
-    url: `${apiUrl}/customer/orders`,
+    url: `${apiUrl}/customer/orders/new_upcomming`,
   });
 
   const { refetch: refetchOrdersHistory, loading: loadingOrdersHistory, data: dataOrdersHistory } = useGet({
-    url: `${apiUrl}/customer/orders/history`,
+    url: `${apiUrl}/customer/orders/new_order_history`,
   });
 
   const { changeState: cancelOrder, loadingChange: loadingCancel } = useChangeState();
